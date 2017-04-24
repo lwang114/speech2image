@@ -4,7 +4,7 @@ This project implements the speech to image network described in the Harwath and
 1. To run the program, use: 
       python semanticembed.py [number of training data] [number of testing data]
       
-2. The audio caption dataset is quite large, about 8GB. If you do not want to download it with the network code, just download the SemEmbedding folder, and create a new sp2im folder yourselves
+2. The audio caption dataset is quite large, about 5GB. If you do not want to download it with the network code, just download the SemEmbedding folder, and create a new sp2im folder yourselves
 
 3. The training curve is in train_accuracy_scnn.txt. The pretrained weights are stored in scnn_pmtrs.npz, and will be automatically updated every time you train the network. 
 
