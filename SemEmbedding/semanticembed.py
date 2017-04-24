@@ -348,11 +348,11 @@ nlabel = 61;
 #nphn = 61;
 if os.path.isfile('captions.npz'):
     data_caption = np.load('captions.npz')
-    captions_tr = data_caption['arr_0']
-    captions_tx = data_caption['arr_1']
+    captions_tr = data_caption['arr_0'][0:ntr]
+    captions_tx = data_caption['arr_1'][0:ntx]
     data_im = np.load('images.npz')
-    im_tr = data_im['arr_0']
-    im_tx = data_im['arr_1']
+    im_tr = data_im['arr_0'][0:ntr]
+    im_tx = data_im['arr_1'][0:ntx]
     print('Line 333: ', captions_tr.shape)
 
 else:
