@@ -344,8 +344,6 @@ dir1 = 'speech'
 dir2 = 'phoneme'
 
 Fs = 16000;
-ntr = 5000;
-ntx = 100;
 nlabel = 61;
 #nphn = 61;
 if os.path.isfile('captions.npz'):
