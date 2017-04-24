@@ -2,6 +2,7 @@ import tensorflow as tf
 import matplotlib.pyplot as plt
 import numpy as np
 import os
+import sys
 from timeit import timeit
 #from IPython.core.debugger import Tracer
 from scipy.io import wavfile
@@ -321,6 +322,23 @@ def loaddata(ntr, ntx):
 # Load the mfcc data computed by the matlab file loadTIMIT.m
 #Tracer()()
 begin_time = timeit()
+ntr = 5000
+ntx = 100
+if len(sys.argv) > 1:
+    if len(sys.argv) == 3:
+        ntr = int(sys.argv[1])
+        ntx = int(sys.argv[2])
+    else:
+        if len(sys.argv) > 3:
+            ntr = int(sys.argv[1])
+            ntx = int(sys.argv[2])
+            update_tr = int(sys.argv[3])
+            if update_tr > 0:
+                os.system('rm captions.npz images.npz')
+
+#print('Line 341:', ntr)
+#print('Line 342:', ntx)
+
 
 dir1 = 'speech'
 dir2 = 'phoneme'
