@@ -8,4 +8,4 @@ This project implements the speech to image network described in the Harwath and
 
 3. The training curve is in train_accuracy_scnn.txt. The pretrained weights are stored in scnn_pmtrs.npz, and will be automatically updated every time you train the network. 
 
-The project is currently under development, more features will appear later.
+The project extracts the mel-frequency spectrogram from raw speech using the MFCC code from CMU Sphinx-III project. This project is currently under development, more features will appear later.
