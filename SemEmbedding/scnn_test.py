@@ -285,9 +285,12 @@ def scnn_test(ntx):
     
     if os.path.isfile(sp_test):
         data = np.load(sp_test)
-        X_test = data['arr_0']
-        data_im = np.load(im_test)
-        Z_test_vgg = data_im['arr_0']
+        if data['arr_0'].shape[0] == ntx:
+            X_test = data['arr_0']
+            data_im = np.load(im_test)
+            Z_test_vgg = data_im['arr_0']
+        else:
+            X_test, Z_test_vgg = loadtest(ntx)
     else:
         X_test, Z_test_vgg = loadtest(ntx)
     
