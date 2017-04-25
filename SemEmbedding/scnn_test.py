@@ -287,9 +287,9 @@ def scnn_test(ntx):
         data = np.load(sp_test)
         X_test = data['arr_0']
         data_im = np.load(im_test)
-        Z_test = data_im['arr_0']
+        Z_test_vgg = data_im['arr_0']
     else:
-        X_test, Z_test = loadtest(ntx)
+        X_test, Z_test_vgg = loadtest(ntx)
     
     nmf = X_test[0].shape[0]
     nframes = X_test[0].shape[1]
@@ -298,6 +298,7 @@ def scnn_test(ntx):
     nlabel = 61
     N = [4, 24, 24]
     J = [nmf, 64, 512, 1024, nlabel]
+    D = [nframes, nframes/2, nframes/4, nframes/4]
     npenult_vgg = 4096
     nembed = 1024
 
@@ -339,19 +340,23 @@ def scnn_test(ntx):
     Y_pred = tf.nn.softmax(a_out)
 
     # Map the penultimate vgg vector to the semantic space
-    Z_vgg = tf.placeholder(tf.float32, shape=[None, npenult_vgg])
+    Z_penult_vgg = tf.placeholder(tf.float32, shape=[None, npenult_vgg])
     w_embed = tf.placeholder(tf.float32, shape=[npenult_vgg, nembed])
     b_embed = tf.placeholder(tf.float32, shape=[nembed])
-
+    Z_embed_vgg = tf.matmul(Z_penult_vgg, w_embed) + b_embed
+    
+    s_a = tf.matmul(h4_ren, tf.transpose(Z_embed_vgg))
+    s = tf.nn.relu(s_a)
     # assume the number of features is nbatch
     s_p = tf.diag_part(s)
     
-    tf.Session()
+    sess = tf.Session()
     init = tf.initialize_all_variables()
     sess.run(init)
     
     # Load network parameters
-    pmtrs = np.load('scnn_pmtrs.npz')
+    data = np.load('scnn_pmtrs.npz')
+    pmtrs = data['arr_0']
     _w_in = pmtrs[0]
     _b_in = pmtrs[1]
     _w_hidden1 = pmtrs[2]
@@ -361,13 +366,12 @@ def scnn_test(ntx):
     _w_out = pmtrs[6]
     _b_out = pmtrs[7]
 
-    pmtrs_vgg = np.load('vgg_pmtrs.npz')
+    data = np.load('vgg_pmtrs.npz')
+    pmtrs_vgg = data['arr_0']
     _w_embed = pmtrs_vgg[0]
     _b_embed = pmtrs_vgg[1]
     
-    
-
-    similarity = sess.run(s, feed_dict={w_in:_w_in, b_in:_b_in, w_hidden1:_w_hidden1, b_hidden1:_b_hidden1, w_hidden2:_w_hidden2, b_hidden2:_b_hidden2, w_out:_w_out, b_out:_b_out, w_embed:_w_embed, b_embed:_b_embed, X_in:X_tx_4d, Z_penult_vgg:Z_tx_vgg})
+    similarity = sess.run(s, feed_dict={w_in:_w_in, b_in:_b_in, w_hidden1:_w_hidden1, b_hidden1:_b_hidden1, w_hidden2:_w_hidden2, b_hidden2:_b_hidden2, w_out:_w_out, b_out:_b_out, w_embed:_w_embed, b_embed:_b_embed, X_in:X_test_4d, Z_penult_vgg:Z_test_vgg})
     #X_tx_4d = X_stack_tx.reshape([ntx*(nframes-2*nreduce), 1, nwin, nmf])
     #test_accuracy = sess.run(accuracy, feed_dict={X_in:X_tx_4d, Z_in:Z_tx})
     ntop = 10

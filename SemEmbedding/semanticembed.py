@@ -493,7 +493,6 @@ Z_pred, Z_embed_sp, Z_penult_sp, pmtrs = scnn(X_in, J, N, D)
 # Compute the similarity scores
 s_a = tf.matmul(Z_embed_sp, tf.transpose(Z_embed_vgg))
 s = tf.nn.relu(s_a)
-# assume the number of features is nbatch
 s_p = tf.diag_part(s)
 # Maximum margin cost function
 cost = tf.reduce_sum(tf.nn.relu(s-s_p+1)+tf.nn.relu(tf.transpose(s)-s_p+1))#*(1-tf.cast(tf.equal(s, s_p), tf.float32))))
@@ -575,10 +574,10 @@ for t in range(niter):
             
             #print('Training similarity score is:\n', similarity)
             #print('Training similarity score of the correct pair at iteration', t, 'batch', i*10, 'is:\n', similarity_p)
-            print('Training cost is:', cur_cost)
-            print('current deviation from correct indices:', min_dev)
+            #print('Training cost is:', cur_cost)
+            #print('current deviation from correct indices:', min_dev)
             #print('current correct pair score:\n', cur_sp)
-            print('current similarity margin:\n', cur_ds)
+            #print('current similarity margin:\n', cur_ds)
             #print('Top 10 indices is:\n', top10_indices)
             print('\n')
 
