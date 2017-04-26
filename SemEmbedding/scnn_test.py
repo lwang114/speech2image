@@ -282,8 +282,8 @@ def loadtest(ntx):
 
 def scnn_test(ntx):
     # Load test data
-    sp_test = 'captions.npz'#'captions_test.npz'
-    im_test = 'images.npz'#'images_test.npz'
+    sp_test = 'captions_test.npz'
+    im_test = 'images_test.npz'
     
     if os.path.isfile(sp_test):
         data = np.load(sp_test)
