@@ -2,8 +2,10 @@ import tensorflow as tf
 import matplotlib.pyplot as plt
 import numpy as np
 import os
+import sys
 from timeit import timeit
 from scipy.io import wavfile
+
 # This script used the pre-trained parameters from semanticembed.py
 # to build a spectrogram CNN, and test it on a large test dataset,
 # which may not be accomodatable in GPU
@@ -285,18 +287,20 @@ def scnn_test(ntx):
     
     if os.path.isfile(sp_test):
         data = np.load(sp_test)
-        if data['arr_0'].shape[0] == ntx:
-            X_test = data['arr_0']
-            data_im = np.load(im_test)
-            Z_test_vgg = data_im['arr_0']
-        else:
-            X_test, Z_test_vgg = loadtest(ntx)
+        #if data['arr_0'].shape[0] == ntx:
+        X_test = data['arr_0'][0:ntx]
+        data_im = np.load(im_test)
+        Z_test_vgg = data_im['arr_0'][0:ntx]
+        #else:
+        #X_test, Z_test_vgg = loadtest(ntx)
     else:
         X_test, Z_test_vgg = loadtest(ntx)
     
     nmf = X_test[0].shape[0]
     nframes = X_test[0].shape[1]
-    X_test_4d = np.reshape(X_test, [ntx, 1, nframes, nmf])
+    print('number of data in X_test and Z_test_vgg:', X_test.shape, Z_test_vgg.shape)
+    #print('the current frame size and number of mel frequencies are:', nframes, nmf)
+    X_test_4d = np.reshape(X_test[0:ntx], [ntx, 1, nframes, nmf])
 
     nlabel = 61
     N = [4, 24, 24]
@@ -385,7 +389,6 @@ def scnn_test(ntx):
         top_indices[k] = cur_top_idx
         # To leave out the top values that have been determined and the find the top values for the rest of the indices
         similarity[cur_top_idx] = -1;
-
     # Find if the image with the matching index has the highest similarity score
     #dev = abs(np.transpose(np.transpose(top10_indices) - np.linspace(0, ntr-1, ntr)))
     dev = abs(top_indices - np.linspace(0, ntx-1, ntx))
@@ -393,3 +396,6 @@ def scnn_test(ntx):
     # Count the number of correct matching by counting the number of 0s in dev
     test_accuracy = np.mean(min_dev == 0)
     print('Test accuracy is: ', str(test_accuracy))
+
+ntx = int(sys.argv[1])
+scnn_test(ntx)
