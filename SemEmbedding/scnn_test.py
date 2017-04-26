@@ -388,7 +388,7 @@ def scnn_test(ntx):
         Z_curr_sp = sess.run(h4_ren, feed_dict={w_in:_w_in, b_in:_b_in, w_hidden1:_w_hidden1, b_hidden1:_b_hidden1, w_hidden2:_w_hidden2, b_hidden2:_b_hidden2, w_out:_w_out, b_out:_b_out, w_embed:_w_embed, b_embed:_b_embed, X_in:X_batch, Z_penult_vgg:Z_batch})
         Z_curr_vgg = sess.run(Z_embed_vgg, feed_dict={w_in:_w_in, b_in:_b_in, w_hidden1:_w_hidden1, b_hidden1:_b_hidden1, w_hidden2:_w_hidden2, b_hidden2:_b_hidden2, w_out:_w_out, b_out:_b_out, w_embed:_w_embed, b_embed:_b_embed, X_in:X_batch, Z_penult_vgg:Z_batch})
         _Z_embed_sp[batch_size*k:batch_size*(k+1)] = Z_curr_sp
-        _Z_embed_vgg[batch_size*k:batch_size*(k+1)] = Z_cur_vgg
+        _Z_embed_vgg[batch_size*k:batch_size*(k+1)] = Z_curr_vgg
 
     similarity = _Z_embed_sp * np.transpose(_Z_embed_vgg)
     #X_tx_4d = X_stack_tx.reshape([ntx*(nframes-2*nreduce), 1, nwin, nmf])
