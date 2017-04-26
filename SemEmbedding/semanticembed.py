@@ -397,7 +397,6 @@ learn_rate = 1e-5;
 #print('line 31:', X_stack_tr.shape)
 #X_stack_tx, Z_stack_tx = contextwin(np.transpose(X_tx, [0, 2, 1]), Z_tx, ncontext, nreduce)
 
-
 #print(X_stack_tr.shape)
 def weight_variable(dims):
     w = tf.Variable(tf.random_normal(dims, stddev=0.01))
