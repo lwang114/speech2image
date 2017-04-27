@@ -382,6 +382,7 @@ def scnn_test(ntx):
     nbatch = int(ntx/batch_size)
     _Z_embed_sp = np.zeros((ntx, nembed))
     _Z_embed_vgg = np.zeros((ntx, nembed))
+    _h3 = np.zeros((ntx, nembed, D[3]))
     for k in range(nbatch):
         X_batch = X_test_4d[batch_size*k:batch_size*(k+1)]
         Z_batch = Z_test_vgg[batch_size*k:batch_size*(k+1)]
@@ -390,13 +391,19 @@ def scnn_test(ntx):
         _Z_embed_sp[batch_size*k:batch_size*(k+1)] = Z_curr_sp
         _Z_embed_vgg[batch_size*k:batch_size*(k+1)] = Z_curr_vgg
 
+        _h3_batch = sess.run(h3, feed_dict={w_in:_w_in, b_in:_b_in, w_hidden1:_w_hidden1, b_hidden1:_b_hidden1, w_hidden2:_w_hidden2, b_hidden2:_b_hidden2, w_out:_w_out, b_out:_b_out, w_embed:_w_embed, b_embed:_b_embed, X_in:X_batch, Z_penult_vgg:Z_batch})
+        _h3[batch_size*k:batch_size*(k+1)] = _h3_batch.reshape((nbatch, nembed, D[3]))
     X_batch = X_test_4d[batch_size*(nbatch):ntx]
     Z_batch = Z_test_vgg[batch_size*(nbatch):ntx]
     Z_curr_sp = sess.run(h4_ren, feed_dict={w_in:_w_in, b_in:_b_in, w_hidden1:_w_hidden1, b_hidden1:_b_hidden1, w_hidden2:_w_hidden2, b_hidden2:_b_hidden2, w_out:_w_out, b_out:_b_out, w_embed:_w_embed, b_embed:_b_embed, X_in:X_batch, Z_penult_vgg:Z_batch})
     Z_curr_vgg = sess.run(Z_embed_vgg, feed_dict={w_in:_w_in, b_in:_b_in, w_hidden1:_w_hidden1, b_hidden1:_b_hidden1, w_hidden2:_w_hidden2, b_hidden2:_b_hidden2, w_out:_w_out, b_out:_b_out, w_embed:_w_embed, b_embed:_b_embed, X_in:X_batch, Z_penult_vgg:Z_batch})
     _Z_embed_sp[batch_size*(nbatch):ntx] = Z_curr_sp
     _Z_embed_vgg[batch_size*(nbatch):ntx] = Z_curr_vgg
+
     similarity = np.maximum(np.dot(_Z_embed_sp, np.transpose(_Z_embed_vgg)), np.zeros((ntx, ntx)))
+    # Similarity for annotation
+    similarity_ann = np.maximum(np.dot(_Z_embed_vgg, np.transpose(_Z_embed_sp)), np.zeros((ntx, ntx)))
+
     #X_tx_4d = X_stack_tx.reshape([ntx*(nframes-2*nreduce), 1, nwin, nmf])
     #test_accuracy = sess.run(accuracy, feed_dict={X_in:X_tx_4d, Z_in:Z_tx})
     ntop = 10
@@ -407,13 +414,40 @@ def scnn_test(ntx):
         top_indices[k] = cur_top_idx
         # To leave out the top values that have been determined and the find the top values for the rest of the indices
         similarity[cur_top_idx] = -1;
+    
     # Find if the image with the matching index has the highest similarity score
     #dev = abs(np.transpose(np.transpose(top10_indices) - np.linspace(0, ntr-1, ntr)))
     dev = abs(top_indices - np.linspace(0, ntx-1, ntx))
     min_dev = np.amin(dev, axis=0)
     # Count the number of correct matching by counting the number of 0s in dev
     test_accuracy = np.mean(min_dev == 0)
-    print('Test accuracy is: ', str(test_accuracy))
+    print('Test accuracy for retrieval is: ', str(test_accuracy))
 
+    ntop = 10
+    top_indices_ann = np.zeros((ntop, ntx))
+    for k in range(ntop):
+        # Find the most similar image feature of the speech feature on the penultimate feature space
+        cur_top_idx_ann = np.argmax(similarity_ann, axis=1)
+        top_indices_ann[k] = cur_top_idx_ann
+        # To leave out the top values that have been determined and find the top values for the rest of the indices
+        similarity_ann[cur_top_idx] = -1;
+    # Find if the image with the matching index has the highest similarity score
+    #dev = abs(np.transpose(np.transpose(top10_indices) - np.linspace(0, ntr-1, ntr)))
+    dev = abs(top_indices_ann - np.linspace(0, ntx-1, ntx))
+    min_dev = np.amin(dev, axis=0)
+    # Count the number of correct matching by counting the number of 0s in dev
+    test_accuracy = np.mean(min_dev == 0)
+    print('Test accuracy for annotation is: ', str(test_accuracy))
+
+
+    '''# Compute the relevancy vector over time
+    score_over_time = np.zeros((ntx, D[3]))
+    for i in range(ntx):
+        score_over_time[i] = np.dot(Z_embed_vgg[i], np.transpose(_h3[i]))
+    np.savez('score_over_time.npz', score_over_time)'''
+    # Save the top indices of image for each of the speech
+    np.savez('top_indices_ret.npz', top_indices)
+    # Save the top indices of speech for each of the image
+    np.savez('top_indices_ann.npz', top_indices_ann)
 ntx = int(sys.argv[1])
 scnn_test(ntx)

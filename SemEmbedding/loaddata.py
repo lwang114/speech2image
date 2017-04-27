@@ -224,6 +224,7 @@ def loaddata(ntr, ntx):
         for i in range(ntr):
             # Load the filenames of the files storing the audio captions and its corresponding vgg16 feature
             cur_info = f.readline()
+            '''
             cur_info_parts = cur_info.rstrip().split()
             sp_name = cur_info_parts[0]
             caption_info = wavfile.read(dir_sp+sp_name)
@@ -257,6 +258,7 @@ def loaddata(ntr, ntx):
             data = np.load(dir_penult+im_name+'.npz')
             cur_penult = data['arr_0']
             im_tr.append(cur_penult)
+            '''
             if i%10:
                 print('Finish loading', 100*i/ntr, 'percent of training data')
         captions_tr = np.array(captions_tr)
@@ -279,7 +281,7 @@ def loaddata(ntr, ntx):
                 nframes = caption.shape[1]
                 nmf = caption.shape[0]
                 caption_new = np.zeros((nmf, Leq))
-                print('274:', nframes, (Leq-nframes)/2)
+                #print('274:', nframes, (Leq-nframes)/2)
                 caption_new[:, (Leq-nframes)/2:(Leq-nframes)/2+nframes] = caption
             else:
                 if caption.shape[1] > Leq:
