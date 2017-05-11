@@ -207,7 +207,7 @@ def dct3(input, K=40):
     cosmat[:,0] = cosmat[:,0] * 0.5
     return numpy.dot(input, cosmat.T)
 
-def loaddata(ntr, ntx):
+def loaddata(ntr, ntx, captions_name, images_name):
     mfcc = MFCC()
     dir_info = '../data/flickr_audio/'
     filename_info = 'wav2capt.txt'
@@ -224,7 +224,6 @@ def loaddata(ntr, ntx):
         for i in range(ntr):
             # Load the filenames of the files storing the audio captions and its corresponding vgg16 feature
             cur_info = f.readline()
-            '''
             cur_info_parts = cur_info.rstrip().split()
             sp_name = cur_info_parts[0]
             caption_info = wavfile.read(dir_sp+sp_name)
@@ -258,13 +257,13 @@ def loaddata(ntr, ntx):
             data = np.load(dir_penult+im_name+'.npz')
             cur_penult = data['arr_0']
             im_tr.append(cur_penult)
-            '''
+
             if i%10:
                 print('Finish loading', 100*i/ntr, 'percent of training data')
         captions_tr = np.array(captions_tr)
         im_tr = np.array(im_tr)
-        np.savez('captions_tr.npz', 'captions_tr')
-        np.savez('images_tr.npz', 'im_tr')
+        #np.savez('captions_tr.npz', captions_tr)
+        #np.savez('images_tr.npz', im_tr)
         for j in range(ntx):
             # Load the image names and the image captions, break the captions into words and store in a list
             cur_info = f.readline()
@@ -304,13 +303,18 @@ def loaddata(ntr, ntx):
                 print('Finish loading', 100*j/ntx, 'percent of test data')
         captions_tx = np.array(captions_tx)
         im_tx = np.array(im_tx)
-        np.savez('captions_test.npz', 'captions_tx')
-        np.savez('images_test.npz', 'im_tx')
-    np.savez('captions.npz', captions_tr, captions_tx)
-    np.savez('images.npz', im_tr, im_tx)
+    np.savez(captions_name, captions_tr, captions_tx)
+    np.savez(images_name, im_tr, im_tx)
+    #np.savez('captions.npz', captions_tr, captions_tx)
+    #np.savez('images.npz', im_tr, im_tx)
     return captions_tr, captions_tx, im_tr, im_tx
 
 ntr = int(sys.argv[1])
 ntx = int(sys.argv[2])
-captions_tr, captions_tx, im_tr, im_tx = loaddata(ntr, ntx)
+captions_name = 'captions.npz'
+images_name = 'images.npz'
+if len(sys.argv) >= 5:
+    captions_name = sys.argv[3]
+    images_name = sys.argv[4]
+captions_tr, captions_tx, im_tr, im_tx = loaddata(ntr, ntx, captions_name, images_name)
 

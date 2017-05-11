@@ -320,37 +320,29 @@ def loaddata(ntr, ntx):
 
 
 # Load the mfcc data computed by the matlab file loadTIMIT.m
-#Tracer()()
-begin_time = timeit()
-ntr = 5000
-ntx = 100
-if len(sys.argv) > 1:
-    if len(sys.argv) == 3:
-        ntr = int(sys.argv[1])
-        ntx = int(sys.argv[2])
-    else:
-        if len(sys.argv) > 3:
-            ntr = int(sys.argv[1])
-            ntx = int(sys.argv[2])
-            update_tr = int(sys.argv[3])
-            if update_tr > 0:
-                os.system('rm captions.npz images.npz')
-
 #print('Line 341:', ntr)
 #print('Line 342:', ntx)
-
-
-dir1 = 'speech'
-dir2 = 'phoneme'
-
 Fs = 16000;
 nlabel = 61;
 #nphn = 61;
-if os.path.isfile('captions.npz'):
-    data_caption = np.load('captions.npz')
+caption_name = 'captions.npz'
+image_name = 'images.npz'
+ntr = 10000
+ntx = 100
+
+if len(sys.argv) >= 3:
+    ntr = int(sys.argv[1])
+    ntx = int(sys.argv[2])
+    if len(sys.argv) >= 5:
+        caption_name = sys.argv[3]
+        image_name = sys.argv[4]
+
+
+if os.path.isfile(caption_name):
+    data_caption = np.load(caption_name)
     captions_tr = data_caption['arr_0'][0:ntr]
     captions_tx = data_caption['arr_1'][0:ntx]
-    data_im = np.load('images.npz')
+    data_im = np.load(image_name)
     im_tr = data_im['arr_0'][0:ntr]
     im_tx = data_im['arr_1'][0:ntx]
     print('Line 333: ', captions_tr.shape)
@@ -419,6 +411,7 @@ def scnn(X_in, J, N, D):
     # Mean subtraction with mean spectrogram estimated over the entire traininig set
     X_mean = tf.reduce_mean(X_in)
     X_zm = X_in - X_mean
+    X_zm = X_in
     w_in = weight_variable([1, N[0]+1, J[0], J[1]])
     b_in = bias_variable([J[1]])
     
@@ -510,21 +503,24 @@ sess.run(init)
 
 batch_size = 128;
 nbatch = int(ntr/batch_size);
-niter = 50;
+niter = 20;
 
 tr_accuracy = np.zeros([niter,])
+dev_accuracy = np.zeros([niter, ])
 for t in range(niter):
     #randidx = np.array([0, 1, 2])
-    randidx = np.argsort(np.random.normal(size=(nbatch,)), 0)
+    randidx = np.argsort(np.random.normal(size=(ntr,)), 0)
+    X_tr_rand = X_tr[randidx]
+    Z_tr_vgg_rand = Z_tr_vgg[randidx]
     for i in range(nbatch):
         #randidices = np.argsort(np.random.normal(size=[batch_size]))
         #X_batch = X_stack_tr[randidx[i]*batch_size:(randidx[i]+1)*batch_size]
         #Z_batch = Z_stack_tr[randidx[i]*batch_size:(randidx[i]+1)*batch_size]
-        X_batch = X_tr[randidx[i]*batch_size:(randidx[i]+1)*batch_size]
+        #X_batch = X_tr_rand[randidx[i]*batch_size:(randidx[i]+1)*batch_size]
         #print('Line 246 dimension of the training data:', X_batch.shape[0])
-        
+        X_batch = X_tr_rand[i*batch_size:(i+1)*batch_size]
         #X_batch = X_tr[i*batch_size:(i+1)*batch_size]
-        Z_batch = Z_tr_vgg[randidx[i]*batch_size:(randidx[i]+1)*batch_size]
+        Z_batch = Z_tr_vgg_rand[i*batch_size:(i+1)*batch_size]
         #Z_batch = Z_tr[i*batch_size:(i+1)*batch_size]
         # Recall the input for conv2d is of shape batch x input height x input width x # of channels
         print(X_batch.shape)
@@ -546,10 +542,13 @@ for t in range(niter):
                 cur_top_idx = np.argmax(similarity, axis=1)
                 top_indices[k] = cur_top_idx
                 # To leave out the top values that have been determined and the find the top values for the rest of the indices
-                similarity[cur_top_idx] = -1;
+                for l in range(batch_size):
+                    similarity[l][cur_top_idx[l]] = -1;
+            #similarity[cur_top_idx] = -1;
             # Find if the image with the matching index has the highest similarity score
             dev = abs(top_indices - np.linspace(0, batch_size-1, batch_size))
             min_dev = np.amin(dev, axis=0)
+            print('current deviation from correct indices for training:', min_dev)
             # Count the number of correct matching by counting the number of 0s in dev
             tr_accuracy[t] = np.mean((min_dev==0))
             #tr_accuracy[t] = sess.run(accuracy, feed_dict={X_in:X_tr_4d, Z_in:Z_tr})
@@ -560,11 +559,38 @@ for t in range(niter):
             #cur_ds = sess.run(ds, feed_dict={X_in:X_tr_4d, Z_penult_vgg:Z_tr_vgg})
             cur_z_sp = sess.run(Z_embed_sp, feed_dict={X_in:X_batch_4d, Z_penult_vgg:Z_batch})
             cur_z_im = sess.run(Z_embed_vgg, feed_dict={X_in:X_batch_4d, Z_penult_vgg:Z_batch})
-            #cur_s = sess.run(s, feed_dict={X_in:X_batch_4d, Z_penult_vgg:Z_batch})
+            cur_s = sess.run(s, feed_dict={X_in:X_batch_4d, Z_penult_vgg:Z_batch})
             cur_ds = sess.run(ds, feed_dict={X_in:X_batch_4d, Z_penult_vgg:Z_batch})
-            print('Iteration', t, 'at batch', i*10)
+            print('Training similarity score is:\n', cur_s)
+            print('Iteration', t, 'at batch', i)
             print('Training accuracy is: ', tr_accuracy[t])
-            
+
+            X_dev_4d = np.reshape(X_tx[0:200], [200, 1, nframes, nmf])
+            Z_dev = Z_tx_vgg[0:200]
+            similarity = sess.run(s, feed_dict={X_in:X_dev_4d, Z_penult_vgg:Z_dev})
+            #similarity_p = sess.run(s_p, feed_dict={X_in:X_tr_4d, Z_penult_vgg:Z_tr_vgg})
+            #cur_cost = sess.run(cost, feed_dict={X_in:X_tr_4d, Z_penult_vgg:Z_tr_vgg})
+            cur_cost = sess.run(cost, feed_dict={X_in:X_dev_4d, Z_penult_vgg:Z_dev})
+            # Find the indices of the images with the top 10 similarity score
+            ntop = 10
+            top_indices = np.zeros((ntop, 200))
+            for k in range(ntop):
+                cur_top_idx = np.argmax(similarity, axis=1)
+                top_indices[k] = cur_top_idx
+                # To leave out the top values that have been determined and the find the top values for the rest of the indices
+                for l in range(batch_size):
+                    similarity[l][cur_top_idx[l]] = -1;
+            #similarity[cur_top_idx] = -1;
+            # Find if the image with the matching index has the highest similarity score
+            dev = abs(top_indices - np.linspace(0, 199, 200))
+            min_dev = np.amin(dev, axis=0)
+            #print('current deviation from correct indices for dev test:', min_dev)
+            dev_accuracy[t] = np.mean((min_dev==0))
+            print('Development accuracy is: ', dev_accuracy[t])
+
+            #scnn_pmtrs = sess.run(pmtrs, feed_dict={X_in:X_batch_4d, Z_penult_vgg:Z_batch})
+            #w_embed = sess.run(w_embed, feed_dict={X_in:X_tr_4d, Z_penult_vgg:Z_tr_vgg})
+            #b_embed = sess.run(b_embed, feed_dict={X_in:X_tr_4d, Z_penult_vgg:Z_tr_vgg})
             #print('similarity score:', np.dot(cur_z_sp, np.transpose(cur_z_im)))
             
             #print('Current audio caption mel-freq feature:\n', X_batch[:, :, 200:600])
@@ -595,7 +621,9 @@ for k in range(ntop):
     cur_top_idx = np.argmax(similarity, axis=1)
     top_indices[k] = cur_top_idx
     # To leave out the top values that have been determined and the find the top values for the rest of the indices
-    similarity[cur_top_idx] = -1;
+    for l in range(ntx):
+        similarity[l][cur_top_idx[l]] = -1
+        #similarity[cur_top_idx] = -1;
 
 # Find if the image with the matching index has the highest similarity score
 #dev = abs(np.transpose(np.transpose(top10_indices) - np.linspace(0, ntr-1, ntr)))
@@ -605,8 +633,8 @@ min_dev = np.amin(dev, axis=0)
 test_accuracy = np.mean(min_dev == 0)
 print('Test accuracy is: ', str(test_accuracy))
 
-runtime = timeit() - begin_time
-print('Total runtime:', runtime)
+#runtime = timeit() - begin_time
+#print('Total runtime:', runtime)
 # Save the parameters of the scnn
 X_tr_4d = X_tr.reshape([ntr, 1, nframes, nmf])
 scnn_pmtrs = sess.run(pmtrs, feed_dict={X_in:X_tr_4d, Z_penult_vgg:Z_tr_vgg})
