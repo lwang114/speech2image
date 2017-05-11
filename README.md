@@ -5,7 +5,7 @@ This project implements the speech to image network described in the Harwath and
       python semanticembed.py [number of training data] [number of testing data]
 
 2. To test the network with pretrained weights, use:   
-      python scnn_test.py [number of test data] (optional:[test speech file] [test image file] [number of top indices when computing accuracy])
+      python scnn_test.py [number of test data] (optional*:[test speech file] [test image file] [number of top indices when computing accuracy])
 
 3. The training curve is in train_accuracy_scnn.txt. The pretrained weights are stored in scnn_pmtrs.npz, and will be automatically updated every time you train the network. 
 
