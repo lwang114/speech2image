@@ -1,5 +1,5 @@
 # speech2image 1.1
-This project implements the speech to image network described in the Harwath and Glass 2016 paper, in tensorflow. The network is trained on the flickr8k_audio caption dataset and vgg penultimate feature vectors in http://isle.illinois.edu/sst/data/vgg_flickr8k.html. Please download the datasets and put them in the data directory before running the program.The training accuracy of the network for top 10 retrieval images is 35%, and 28% for top 5 images.
+This project implements the speech to image network described in the Harwath and Glass 2016 paper, in tensorflow (0.11.0rc0). The network is trained on the flickr8k_audio caption dataset and vgg penultimate feature vectors in http://isle.illinois.edu/sst/data/vgg_flickr8k.html. Please download the datasets and put them in the data directory before running the program.The training accuracy of the network for top 10 retrieval images is 35%, and 28% for top 5 images.
 
 1. To run the program, use:  
       python semanticembed.py [number of training data] [number of testing data]
