@@ -1,4 +1,4 @@
-import matplotlib.pyplot as plt
+#import matplotlib.pyplot as plt
 import numpy as np
 import os
 import sys
@@ -79,15 +79,16 @@ class MFCC(object):
                 leftslope = 0
             freq = leftfr + 1
             while freq < centerfr:
-                self.filters[freq,whichfilt] = (freq - leftfr) * leftslope
+                #print('freq, which filt values:', freq, whichfilt)
+                self.filters[int(freq),whichfilt] = (freq - leftfr) * leftslope
                 freq = freq + 1
             if freq == centerfr: # This is always true
-                self.filters[freq,whichfilt] = height
+                self.filters[int(freq),whichfilt] = height
                 freq = freq + 1
             if centerfr != rightfr:
                 rightslope = height / (centerfr - rightfr)
             while freq < rightfr:
-                self.filters[freq,whichfilt] = (freq - rightfr) * rightslope
+                self.filters[int(freq),whichfilt] = (freq - rightfr) * rightslope
                 freq = freq + 1
                 #             print("Filter %d: left %d=%f center %d=%f right %d=%f width %d" %
                 #                   (whichfilt,
@@ -107,7 +108,7 @@ class MFCC(object):
         while fr < nfr:
             start = round(fr * self.fshift)
             end = min(len(sig), start + self.wlen)
-            frame = sig[start:end]
+            frame = sig[int(start):int(end)]
             if len(frame) < self.wlen:
                 frame = numpy.resize(frame,self.wlen)
                 frame[self.wlen:] = 0
@@ -122,7 +123,7 @@ class MFCC(object):
         while fr < nfr:
             start = round(fr * self.fshift)
             end = min(len(sig), start + self.wlen)
-            frame = sig[start:end]
+            frame = sig[int(start):int(end)]
             if len(frame) < self.wlen:
                 frame = numpy.resize(frame,self.wlen)
                 frame[self.wlen:] = 0
@@ -207,6 +208,96 @@ def dct3(input, K=40):
     cosmat[:,0] = cosmat[:,0] * 0.5
     return numpy.dot(input, cosmat.T)
 
+def loaddata2(ntr, ntx, captions_name, images_name):
+    mfcc = MFCC()
+    # This function load training and test data such that the training and test data contain the same type of images
+    infofile = '../data/Flickr8k_text/Flickr8k.token.txt'
+    dir_sp = '../data/flickr_audio/wavs/'
+    dir_penult = '../data/vgg_flickr8k_nnet_penults/'
+
+    # Load one image at a time and use the first three captions as the training set and the last two captions as the test set, load the images and speech vectors, store them separately in two lists for both training and test set
+    captions_tr = []
+    im_tr = []
+    nrep_tr = 3
+    
+    captions_tx = []
+    im_tx = []
+    nrep_tx = 2
+    Leq = 1024
+    count_tr = 0
+    count_tx = 0
+    
+    print('Begin to load data ...')
+    with open(infofile, 'r') as f:
+        while not count_tr == ntr:
+            # Load the filenames of the audio caption files and the vgg16 feature files
+            
+            for k in range(5):
+                cur_info = f.readline()
+                cur_info_parts = cur_info.rstrip().split()
+                im_name_raw = cur_info_parts[0]
+                im_name_parts = im_name_raw.split('#')
+                im_name = im_name_parts[0]
+                im_id_raw = im_name.split('.')
+
+                sp_name = im_id_raw[0] + '_' + str(k) + '.wav'
+                caption_info = wavfile.read(dir_sp+sp_name)
+                caption_time = caption_info[1]
+                # Covert the audio into spectrogram
+                caption = mfcc.sig2logspec(caption_time)
+                # Transpose the caption data
+                if caption.shape[0] > caption.shape[1]:
+                    caption = np.transpose(caption)
+                # Equalize the length
+                if caption.shape[1] < Leq:
+                    nframes = caption.shape[1]
+                    nmf = caption.shape[0]
+                    #print('240:', nframes, (Leq-nframes)/2)
+                    caption_new = np.zeros((nmf, Leq))
+                    caption_new[:, int(round((Leq-nframes)/2)):int(round((Leq-nframes)/2)+nframes)] = caption
+                else:
+                    if caption.shape[1] > Leq:
+                        nframes = caption.shape[1]
+                        nmf = caption.shape[0]
+                        caption_new = np.zeros((nmf, Leq))
+                        caption_new = caption[:, int(round((nframes-Leq)/2)):int(round((nframes-Leq)/2)+Leq)]
+                        #print('248:', caption_new)
+                data = np.load(dir_penult+im_id_raw[0]+'.npz')
+                cur_penult = data['arr_0']
+                im_tr.append(cur_penult)
+                
+                if k < 3:
+                    count_tr = count_tr + 1
+                    captions_tr.append(caption_new)
+                    im_tr.append(cur_penult)
+                    if count_tr%10:
+                        print('Finish loading', 100*count_tr/ntr, 'percent of training data')
+                    if count_tr == ntr:
+                        break
+                else:
+                    count_tx = count_tx + 1
+                    captions_tx.append(caption_new)
+                    im_tx.append(cur_penult)
+                    
+                    if count_tx%10:
+                        print('Finish loading', 100*count_tx/ntx, 'percent of test data')
+                    if count_tx == ntx:
+                        break
+
+    # Save the speech lists in one .npz file and save the image lists in another .npz file
+    captions_tr = np.array(captions_tr)
+    im_tr = np.array(im_tr)
+    captions_tx = np.array(captions_tx)
+    im_tx = np.array(im_tx)
+    print('Number of train:', captions_tr.shape[0])
+    print('Number of test:', captions_tx.shape[0])
+    np.savez(captions_name, captions_tr, captions_tx)
+    np.savez(images_name, im_tr, im_tx)
+    return captions_tr, captions_tx, im_tr, im_tx
+
+
+
+
 def loaddata(ntr, ntx, captions_name, images_name):
     mfcc = MFCC()
     dir_info = '../data/flickr_audio/'
@@ -222,7 +313,7 @@ def loaddata(ntr, ntx, captions_name, images_name):
     Leq = 1024
     with open(dir_info+filename_info, 'r') as f:
         for i in range(ntr):
-            # Load the filenames of the files storing the audio captions and its corresponding vgg16 feature
+            # Load the filenames of the audio caption files and the vgg16 feature files
             cur_info = f.readline()
             cur_info_parts = cur_info.rstrip().split()
             sp_name = cur_info_parts[0]
@@ -240,13 +331,13 @@ def loaddata(ntr, ntx, captions_name, images_name):
                 nmf = caption.shape[0]
                 #print('240:', nframes, (Leq-nframes)/2)
                 caption_new = np.zeros((nmf, Leq))
-                caption_new[:, round((Leq-nframes)/2):round((Leq-nframes)/2)+nframes] = caption
+                caption_new[:, int(round((Leq-nframes)/2)):int(round((Leq-nframes)/2)+nframes)] = caption
             else:
                 if caption.shape[1] > Leq:
                     nframes = caption.shape[1]
                     nmf = caption.shape[0]
                     caption_new = np.zeros((nmf, Leq))
-                    caption_new = caption[:, round((nframes-Leq)/2):round((nframes-Leq)/2)+Leq]
+                    caption_new = caption[:, int(round((nframes-Leq)/2)):int(round((nframes-Leq)/2)+Leq)]
             #print('248:', caption_new)
             captions_tr.append(caption_new)
             # Remove the .jpg# at the end of the file to .npz format, which is used to store vgg16 feature
@@ -287,7 +378,7 @@ def loaddata(ntr, ntx, captions_name, images_name):
                     nframes = caption.shape[1]
                     nmf = caption.shape[0]
                     caption_new = np.zeros((nmf, Leq))
-                    caption_new = caption[:, (nframes-Leq)/2:(nframes-Leq)/2+Leq]
+                    caption_new = caption[:, int((nframes-Leq)/2):int((nframes-Leq)/2+Leq)]
             captions_tx.append(caption_new)
             # Remove the .jpg# at the end of the file to the format of vgg16 feature file
             im_name_raw = cur_info_parts[1]
@@ -316,5 +407,5 @@ images_name = 'images.npz'
 if len(sys.argv) >= 5:
     captions_name = sys.argv[3]
     images_name = sys.argv[4]
-captions_tr, captions_tx, im_tr, im_tx = loaddata(ntr, ntx, captions_name, images_name)
+captions_tr, captions_tx, im_tr, im_tx = loaddata2(ntr, ntx, captions_name, images_name)
 
