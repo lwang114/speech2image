@@ -7,7 +7,7 @@
 # Things you need to download:
 # 1. tensorflor, numpy, and scipy if you don't have them.
 # 2. The files vgg16.py, imagenet_classes.py, and vgg16_weights.npz from
-# http://www.cs.toronto.edu/~frossard/post/vgg16/                                      #
+# http://www.cs.toronto.edu/~frossard/post/vgg16/                               
 # 3. The file mfcc.py from
 # http://www.cs.cmu.edu/~dhuggins/Projects/pyphone/sphinx/mfcc.py
 ########################################################################
@@ -15,6 +15,8 @@
 # Tensorflow, numpy, scipy, os
 import tensorflow as tf
 import numpy as np
+import os
+from scipy.misc import imread, imresize
 # Davi Frossard's TensorFlow implementation of VGG16 ImageNet object detector
 from vgg16 import vgg16
 # Liming Wang's implementation of Speech CNN
@@ -29,22 +31,23 @@ if __name__ == '__main__':
     
     ###########################################################################
     # First, read the input images, compute VGG feature files, and write them
-    imagefile_path = '../data/flickr8k/Flicker8k_Dataset'
-    imagefile_list = os.listdir(imagefile_path)
-    vfeatfile_list = [ x[:-4] for x in imagefile_list ]
-
-    # Create a new default graph, within which the VGG16 network will go
-    with tf.Graph().as_default() as g_vgg16:
-        vgg16_session = tf.Session()
-        vgg16_input = tf.placeholder(tf.float32, [None, 224, 224, 3])
-        vgg16_nnet = vgg16(vgg16_input, '../../vgg16/vgg16_weights.npz', vgg16_session)
-    
-        for n in range(0,n_images):
-            img1 = imread(imagefile_path+'/'+imagefile_list[n], mode='RGB')
-            img1 = imresize(img1, (224,224))
-            fc2 = vgg16_session.run(vgg.fc2, feed_dict={vgg.imgs: [img1]})[0]
-            np.savez(vfeatfile_list[n],penults)
-        
+#    imagefile_path = '../../../data/flickr8k/Flicker8k_Dataset'
+#    imagefile_list = os.listdir(imagefile_path)
+#    vfeatfile_path = '../data/vfeats/'
+#    vfeatfile_list = [ x[:-4] for x in imagefile_list ]
+#
+#    # Create a new default graph, within which the VGG16 network will go
+#    with tf.Graph().as_default() as g_vgg16:
+#        vgg16_session = tf.Session()
+#        vgg16_input = tf.placeholder(tf.float32, [None, 224, 224, 3])
+#        vlscnngg16_nnet = vgg16(vgg16_input, '../../vgg16/vgg16_weights.npz', vgg16_session)
+#    
+#    nfboo    for n in range(0,n_images):
+#            img1 = imread(imagefile_path+'/'+imagefile_list[n], mode='RGB')
+#            img1 = imresize(img1, (224,224))
+#            penults = vgg16_session.run(vgg16_nnet.fc2, feed_dict={vgg16_nnet.imgs: [img1]})[0]
+#            np.savez(vfeatfile_path+'/'+vfeatfile_list[n],penults)
+#        
     ###########################################################################
     # Second, train the LSCNN, and test on the training images
     # Create a separate tensorflow graph to store this network
