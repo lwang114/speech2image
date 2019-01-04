@@ -43,22 +43,24 @@ class COCO_Preprocessor(Preprocessor):
   def calc_pixel_mean_and_variance(self):
     pixel_mean = 0.
     pixel_sqr_mean = 0.
-    n_examples = len(self.data_info) 
+    n =  
     for item in self.data_info:
       im_filename = item['im_filename']
       img = Image.open("%s/%s" % (self.data_dir, im_filename), 'r')
+      w, h = np.array(img).shape
       pixel_mean += np.sum(np.array(img))
       pixel_sqr_mean += np.sum(np.array(img) ** 2)  
-    pixel_mean = pixel_mean / n_examples
-    pixel_sqr_mean = pixel_sqr_mean / n_examples
+      n += w * h
+    pixel_mean = pixel_mean / n
+    pixel_sqr_mean = pixel_sqr_mean / n
     pixel_var = pixel_sqr_mean - pixel_mean ** 2
     return pixel_mean, pixel_var
 
-  def extract(self):
+  def extract(self, split_ratio=1.):
     tag_prefix = 'N'
     puncts = [',', ';', '-', '\"', '\'']
     silence = '__SIL__'
-    for img_id in self.coco_api.imgToAnns.keys()[:5]:
+    for img_id in self.coco_api.imgToAnns.keys():
       pair_info = {}
       
       captions = self.speech_api.getImgCaptions(img_id) 
@@ -130,8 +132,25 @@ class COCO_Preprocessor(Preprocessor):
       self.data_info.append(pair_info)
     self.pixel_mean, self.pixel_variance = self.calc_pixel_mean_and_variance()
       
-    with open(self.output_file, 'w') as f:
-      json.dump({'data': self.data_info, 
+    # TODO: Implement cross validation
+    n_examples = len(self.data_info)
+    if split_ratio < 1:
+      data_info_train = self.data_info[:int(split_ratio * n_examples)] 
+      data_info_val = self.data_info[int(split_ratio * n_examples):]
+      with open('train_%s' % self.output_file, 'w') as f:
+        json.dump({'data': self.data_info_train, 
+                 'pixel_mean': self.pixel_mean,
+                 'pixel_variance': self.pixel_variance}, 
+                f, indent=4, sort_keys=True)
+      
+      with open('val_%s' % self.output_file, 'w') as f:
+        json.dump({'data': self.data_info_train, 
+                 'pixel_mean': self.pixel_mean,
+                 'pixel_variance': self.pixel_variance}, 
+                f, indent=4, sort_keys=True)
+    else:
+      with open(self.output_file, 'w') as f:
+        json.dump({'data': self.data_info, 
                  'pixel_mean': self.pixel_mean,
                  'pixel_variance': self.pixel_variance}, 
                 f, indent=4, sort_keys=True)
@@ -140,4 +159,4 @@ if __name__ == '__main__':
   preproc = COCO_Preprocessor(["annotations/instances_val2014.json",
                               "../../data/mscoco/val2014/val_2014.sqlite3"],
                               "../../data/mscoco/val2014/imgs/val2014")
-  preproc.extract()
+  preproc.extract(split_ratio=0.8)
