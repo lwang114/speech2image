@@ -1,19 +1,28 @@
 import nltk
 from nltk.stem import WordNetLemmatizer
+import json
+import numpy as np
+from PIL import Image
+from pycocotools.coco import COCO
+from SpeechCoco.speechcoco_API.speechcoco.speechcoco import SpeechCoco
 
-DEBUG = False
-class Preprocessor:
-  def __init__(self, api_files, output_file):
+
+DEBUG = True
+class Preprocessor(object):
+  def __init__(self, api_files, data_dir, output_file):
     self.api_files = api_files
+    self.data_dir = data_dir
     self.output_file = output_file
     self.data_info = []
+    self.pixel_mean = 0.
+    self.pixel_variance = 0.
 
   def extract(self):
     raise NotImplementedError
 
 class COCO_Preprocessor(Preprocessor):
-  def __init__(self, api_files, output_file = "mscoco_info.json"):
-    super().__init__(api_files, output_file)
+  def __init__(self, api_files, data_dir, output_file = "mscoco_info.json"):
+    super(COCO_Preprocessor, self).__init__(api_files, data_dir, output_file)
     instance_json_path = self.api_files[0]     
     speech_sql_file = self.api_files[1]    
     #concept_file = "concept_pairs.json"
@@ -31,12 +40,28 @@ class COCO_Preprocessor(Preprocessor):
 
     self.lemmatizer = WordNetLemmatizer()
 
+  def calc_pixel_mean_and_variance(self):
+    pixel_mean = 0.
+    pixel_sqr_mean = 0.
+    n_examples = len(self.data_info) 
+    for item in self.data_info:
+      im_filename = item['im_filename']
+      img = Image.open("%s/%s" % (self.data_dir, im_filename), 'r')
+      pixel_mean += np.sum(np.array(img))
+      pixel_sqr_mean += np.sum(np.array(img) ** 2)  
+    pixel_mean = pixel_mean / n_examples
+    pixel_sqr_mean = pixel_sqr_mean / n_examples
+    pixel_var = pixel_sqr_mean - pixel_mean ** 2
+    return pixel_mean, pixel_var
+
   def extract(self):
     tag_prefix = 'N'
-    for img_id in coco_api.imgToAnns.keys()[:10]:
+    puncts = [',', ';', '-', '\"', '\'']
+    silence = '__SIL__'
+    for img_id in self.coco_api.imgToAnns.keys()[:5]:
       pair_info = {}
       
-      captions = speech_api.getImgCaptions(img_id) 
+      captions = self.speech_api.getImgCaptions(img_id) 
       # Extract word segment with window size of 1, 3 and 5
       for caption in captions:
         pair_info['sp_filename'] = caption.filename
@@ -44,12 +69,19 @@ class COCO_Preprocessor(Preprocessor):
         pair_info['nouns'] = []
         pair_info['context3'] = []
         pair_info['context5'] = []
+        if DEBUG:
+          print(dir(caption))
         capt_id = caption.captionID 
-        wrd_aligns = caption.timecode.parse()
-        tags = nltk.pos_tag(nltk.tokenize(caption.text))
+        timecode = caption.timecode.parse()
+        disfluency = caption.disfluencyVal
+        text = nltk.tokenize.word_tokenize(caption.text) 
+        text_fluent = [w for w in text if w not in disfluency and w not in puncts]
+        timecode_fluent = [wa for wa in timecode if wa['value'] not in disfluency and wa['value'] != silence]
 
-        for i, (wrd_align, tag) in enumerate(zip(wrd_aligns, tags[:-1])):
+        tags = nltk.pos_tag(text_fluent)
+        for i, (wrd_align, tag) in enumerate(zip(timecode_fluent, tags[:-1])):
           wrd = wrd_align['value']
+          
           if tag[1][0] != tag_prefix:
             continue
           wrd = self.lemmatizer.lemmatize(wrd)
@@ -60,21 +92,21 @@ class COCO_Preprocessor(Preprocessor):
           context3 = [] 
           context5 = []
           begin3_id = max(i - 1, 0)
-          end3_id = min(i + 1, len(wrd_aligns) - 1)
+          end3_id = min(i + 1, len(timecode_fluent) - 1)
           
           begin5_id = max(i - 2, 0)
-          end5_id = min(i + 2, len(wrd_aligns) - 1)
+          end5_id = min(i + 2, len(timecode_fluent) - 1)
 
-          begin_context3 = wrd_aligns[begin3_id]['begin']
-          end_context3 = wrd_aligns[end3_id]['end']
+          begin_context3 = timecode_fluent[begin3_id]['begin']
+          end_context3 = timecode_fluent[end3_id]['end']
 
-          begin_context5 = wrd_aligns[begin5_id]['begin']
-          end_context5 = wrd_aligns[end5_id]['end']
+          begin_context5 = timecode_fluent[begin5_id]['begin']
+          end_context5 = timecode_fluent[end5_id]['end']
           
           for j in range(begin3_id, end3_id):
-            context3.append(wrd_aligns[j]['value']) 
+            context3.append(timecode_fluent[j]['value']) 
           for j in range(begin5_id, end5_id):
-            context5.append(wrd_aligns[j]['value'])
+            context5.append(timecode_fluent[j]['value'])
           
           if DEBUG:
             print(wrd, tag)
@@ -83,20 +115,29 @@ class COCO_Preprocessor(Preprocessor):
           pair_info['context5'].append((context5, begin_context5, end_context5))
 
       # Extract image bounding boxes
-      im_filename = coco_api.loadImgs(int(im_id))[0]['file_name'] 
+      im_filename = self.coco_api.loadImgs(int(img_id))[0]['file_name'] 
       pair_info['im_filename'] = im_filename
+      pair_info['bboxes'] = []
 
-      ann_ids = coco_api.getAnnIds(img_id)
-      anns = coco_api.loadAnns(ann_ids)
+      ann_ids = self.coco_api.getAnnIds(img_id)
+      anns = self.coco_api.loadAnns(ann_ids)
       
       for ann in anns:
-        cat = coco_api.loadCats(ann['category_id'])[0]['name']
+        cat = self.coco_api.loadCats(ann['category_id'])[0]['name']
         x, y, w, h = ann['bbox']
-        pair_info['bbox'].append((cat, x, y, w, h))
+        pair_info['bboxes'].append((cat, x, y, w, h))
 
       self.data_info.append(pair_info)
+    self.pixel_mean, self.pixel_variance = self.calc_pixel_mean_and_variance()
+      
+    with open(self.output_file, 'w') as f:
+      json.dump({'data': self.data_info, 
+                 'pixel_mean': self.pixel_mean,
+                 'pixel_variance': self.pixel_variance}, 
+                f, indent=4, sort_keys=True)
 
 if __name__ == '__main__':
   preproc = COCO_Preprocessor(["annotations/instances_val2014.json",
-                              "val2014/val_2014.sqlite3"])
+                              "../../data/mscoco/val2014/val_2014.sqlite3"],
+                              "../../data/mscoco/val2014/imgs/val2014")
   preproc.extract()
