@@ -13,6 +13,7 @@ from torch.utils.data import Dataset
 import torchvision.transforms as transforms
 from matplotlib.pyplot import *
 import shutil
+import random
 
 # TODO: Load segments and bounding boxes of the speech
 # TODO: Compute the mean and std of the pixel values of the images in MSCOCO 
@@ -126,6 +127,10 @@ class ImageCaptionDataset(Dataset):
     """
     datum_info = self.data_info[index]    
     wavpath = datum_info['sp_filename']
+    # When one image corresponds to multiple captions, randomly sample one of them 
+    if isinstance(wavpath, list):
+      wav_ind = random.randint(0, len(wavpath)-1) 
+      wavpath = wavpath[wav_ind]
     imgpath = datum_info['im_filename']
     spec, nframes = self._LoadAudio(self.audio_base_path + wavpath)
     image = self._LoadImage(self.image_base_path + imgpath)

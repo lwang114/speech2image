@@ -2,6 +2,7 @@ import nltk
 from nltk.stem import WordNetLemmatizer
 import json
 import numpy as np
+from collections import defaultdict
 from PIL import Image
 from pycocotools.coco import COCO
 from SpeechCoco.speechcoco_API.speechcoco.speechcoco import SpeechCoco
@@ -61,19 +62,19 @@ class COCO_Preprocessor(Preprocessor):
     tag_prefix = 'N'
     puncts = [',', ';', '-', '\"', '\'']
     silence = '__SIL__'
-    for img_id in self.coco_api.imgToAnns.keys():
-      pair_info = {}
+    for img_id in self.coco_api.imgToAnns.keys()[:20]:
+      pair_info = defaultdict(list)
       
       captions = self.speech_api.getImgCaptions(img_id) 
       # Extract word segment with window size of 1, 3 and 5
       for caption in captions:
-        pair_info['sp_filename'] = caption.filename
-        pair_info['text'] = caption.text
-        pair_info['nouns'] = []
-        pair_info['context3'] = []
-        pair_info['context5'] = []
+        pair_info['sp_filename'].append(caption.filename)
+        pair_info['text'].append(caption.text)
+        pair_info['nouns'].append([])
+        pair_info['context3'].append([])
+        pair_info['context5'].append([])
         if DEBUG:
-          print(dir(caption))
+          print(caption.filename)
         capt_id = caption.captionID 
         timecode = caption.timecode.parse()
         disfluency = caption.disfluencyVal
@@ -159,5 +160,6 @@ class COCO_Preprocessor(Preprocessor):
 if __name__ == '__main__':
   preproc = COCO_Preprocessor(["annotations/instances_val2014.json",
                               "../../data/mscoco/val2014/val_2014.sqlite3"],
-                              "../../data/mscoco/val2014/imgs/val2014")
-  preproc.extract(split_ratio=0.8)
+                              "../../data/mscoco/val2014/imgs/val2014", 
+                              output_file='mscoco_test_info.json')
+  preproc.extract(split_ratio=0.5)
