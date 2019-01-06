@@ -28,6 +28,8 @@ class ImageCaptionDataset(Dataset):
       data_json = json.load(f)
 
     self.data_info = data_json['data']
+    self.pixel_mean = np.array(data_json['pixel_mean'])
+    self.pixel_std = np.array(data_json['pixel_variance']) ** 1/2
     if not audio_conf:
       self.audio_conf = {}
     else:
@@ -51,8 +53,8 @@ class ImageCaptionDataset(Dataset):
         [transforms.RandomResizedCrop(crop_size), transforms.ToTensor()]) 
     
     # TODO: modify this part to the mean and std of MSCOCO
-    RGB_mean = self.image_conf.get('RGB_mean', [0.485, 0.456, 0.406])
-    RGB_std = self.image_conf.get('RGB_std', [0.229, 0.224, 0.225])
+    RGB_mean = self.image_conf.get('RGB_mean', self.pixel_mean) #[0.485, 0.456, 0.406])
+    RGB_std = self.image_conf.get('RGB_std', self.pixel_std)#[0.229, 0.224, 0.225])
     self.image_normalize = transforms.Normalize(mean=RGB_mean, std=RGB_std)
 
     self.windows = {'hamming': scipy.signal.hamming,

@@ -8,11 +8,18 @@ from dataloaders.image_caption_dataset import *
 #from utils.preprocessor import *
 
 parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-parser.add_argument("--data-train", type=str, default='../data/test/data_info_train.json',
-        help="training data json")
-parser.add_argument("--data-val", type=str, default='../data/test/data_info_val.json',
-        help="validation data json")
-parser.add_argument("--exp-dir", type=str, default="../data/test/exp",
+parser.add_argument("--data-train-audio", type=str, default='../data/test/',
+        help="training directory for audio data (.wav)")
+parser.add_argument("--data-train-image", type=str, default='../data/test/',
+        help="training directory for image data (.png or .jpg)")
+parser.add_argument("--data-val-audio", type=str, default='../data/test/',
+        help="validation directory for audio data (.wav)")
+parser.add_argument("--data-val-image", type=str, default='../data/test/',
+        help="validation directory for image data (.png or .jpg)")
+
+parser.add_argument("--data-info-train", type=str, default='../data/test/data_info_train.json')
+parser.add_argument("--data-info-val", type=str, default='../data/test/data_info_val.json')
+parser.add_argument("--exp-dir", type=str, default="../data/test/",
         help="directory to dump experiments")
 parser.add_argument("--resume", action="store_true", dest="resume",
         help="load from exp_dir if True")
@@ -45,14 +52,26 @@ parser.add_argument("--simtype", type=str, default="MISA",
 parser.add_argument("--save_matchmap", action="store_true", help="save the matchmaps in the exp_dir if true")
 
 args = parser.parse_args()
-print(args)
+args.exp_dir = '../data/mscoco'
 
 # Create a random dataset
-audio_conf = {'audio_base_path': '../data/test/'}
-image_conf = {'image_base_path': '../data/test/'}
+args.data_train_audio = '../data/mscoco/val2014/wav/'
+args.data_val_audio = '../data/mscoco/val2014/wav/'
+args.data_train_image = '../data/mscoco/val2014/imgs/val2014/'
+args.data_val_image = '../data/mscoco/val2014/imgs/val2014/'
 
-dset_train = ImageCaptionDataset('../data/test/data_info_train.json', audio_conf, image_conf)
-dset_val = ImageCaptionDataset('../data/test/data_info_test.json', audio_conf, image_conf)
+audio_conf_train = {'audio_base_path': args.data_train_audio}
+image_conf_train = {'image_base_path': args.data_train_image}
+audio_conf_val = {'audio_base_path': args.data_val_audio}
+image_conf_val = {'image_base_path': args.data_val_image}
+
+args.data_info_train = '../data/mscoco/train_mscoco_info.json'
+args.data_info_val = '../data/mscoco/val_mscoco_info.json'
+
+print(args)
+
+dset_train = ImageCaptionDataset(args.data_info_train, audio_conf_train, image_conf_train)
+dset_val = ImageCaptionDataset(args.data_info_val, audio_conf_val, image_conf_val)
 
 train_loader = torch.utils.data.DataLoader(
     dset_train, batch_size=args.batch_size, shuffle=True, num_workers=8, pin_memory=True
@@ -67,6 +86,6 @@ image_model = VGG16()
 if DEBUG:
   print(audio_model.parameters(), image_model.parameters())
 
-#train(audio_model, image_model, train_loader, val_loader, args)
-recalls = validate(audio_model, image_model, val_loader, args)
-print(recalls)
+train(audio_model, image_model, train_loader, val_loader, args)
+#recalls = validate(audio_model, image_model, val_loader, args)
+#print(recalls)

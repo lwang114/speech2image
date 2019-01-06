@@ -6,7 +6,6 @@ from PIL import Image
 from pycocotools.coco import COCO
 from SpeechCoco.speechcoco_API.speechcoco.speechcoco import SpeechCoco
 
-
 DEBUG = True
 class Preprocessor(object):
   def __init__(self, api_files, data_dir, output_file):
@@ -43,18 +42,20 @@ class COCO_Preprocessor(Preprocessor):
   def calc_pixel_mean_and_variance(self):
     pixel_mean = 0.
     pixel_sqr_mean = 0.
-    n =  
+    n = 0. 
     for item in self.data_info:
       im_filename = item['im_filename']
       img = Image.open("%s/%s" % (self.data_dir, im_filename), 'r')
-      w, h = np.array(img).shape
-      pixel_mean += np.sum(np.array(img))
-      pixel_sqr_mean += np.sum(np.array(img) ** 2)  
+      w = np.array(img).shape[0]
+      h = np.array(img).shape[1]
+      d = np.array(img).shape[2]
+      pixel_mean += np.sum(np.sum(np.array(img), axis=0), axis=0)
+      pixel_sqr_mean += np.sum(np.sum(np.array(img) ** 2, axis=0), axis=0) 
       n += w * h
     pixel_mean = pixel_mean / n
     pixel_sqr_mean = pixel_sqr_mean / n
     pixel_var = pixel_sqr_mean - pixel_mean ** 2
-    return pixel_mean, pixel_var
+    return list(pixel_mean), list(pixel_var)
 
   def extract(self, split_ratio=1.):
     tag_prefix = 'N'
@@ -130,7 +131,7 @@ class COCO_Preprocessor(Preprocessor):
         pair_info['bboxes'].append((cat, x, y, w, h))
 
       self.data_info.append(pair_info)
-    self.pixel_mean, self.pixel_variance = self.calc_pixel_mean_and_variance()
+    self.pixel_mean, self.pixel_variance = [0., 0., 0.], [1., 1., 1.] #self.calc_pixel_mean_and_variance()
       
     # TODO: Implement cross validation
     n_examples = len(self.data_info)
@@ -138,13 +139,13 @@ class COCO_Preprocessor(Preprocessor):
       data_info_train = self.data_info[:int(split_ratio * n_examples)] 
       data_info_val = self.data_info[int(split_ratio * n_examples):]
       with open('train_%s' % self.output_file, 'w') as f:
-        json.dump({'data': self.data_info_train, 
+        json.dump({'data': data_info_train, 
                  'pixel_mean': self.pixel_mean,
                  'pixel_variance': self.pixel_variance}, 
                 f, indent=4, sort_keys=True)
       
       with open('val_%s' % self.output_file, 'w') as f:
-        json.dump({'data': self.data_info_train, 
+        json.dump({'data': data_info_val, 
                  'pixel_mean': self.pixel_mean,
                  'pixel_variance': self.pixel_variance}, 
                 f, indent=4, sort_keys=True)

@@ -7,7 +7,7 @@ import pickle
 import sys
 from .utils import *
 
-DEBUG = True
+DEBUG = False
 def train(audio_model, image_model, train_loader, test_loader, args):
   device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
   torch.set_grad_enabled(True)
@@ -144,9 +144,9 @@ def train(audio_model, image_model, train_loader, test_loader, args):
     # Validation
     recalls = validate(audio_model, image_model, test_loader, args)
     # Save models and optimizers
-    torch.save(audio_model.state_dict(), "%s/models/audio_model.%d" % (exp_dir, epoch))
-    torch.save(image_model.state_dict(), "%s/models/image_model.%d" % (exp_dir, epoch))
-    torch.save(optimizer.state_dict(), "%s/models/optim_states.%d" % (exp_dir, epoch))
+    torch.save(audio_model.state_dict(), "%s/models/audio_model.%d.pth" % (exp_dir, epoch))
+    torch.save(image_model.state_dict(), "%s/models/image_model.%d.pth" % (exp_dir, epoch))
+    torch.save(optimizer.state_dict(), "%s/models/optim_states.%d.pth" % (exp_dir, epoch))
 
     # Update best accuracy and epoch and overwrite the model files
     acc = (recalls['A_r10'] + recalls['I_r10']) / 2  
