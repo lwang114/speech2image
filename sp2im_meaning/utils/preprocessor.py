@@ -42,27 +42,32 @@ class COCO_Preprocessor(Preprocessor):
 
   def calc_pixel_mean_and_variance(self):
     pixel_mean = 0.
-    pixel_sqr_mean = 0.
+    pixel_var = 0.
     n = 0. 
     for item in self.data_info:
       im_filename = item['im_filename']
-      img = Image.open("%s/%s" % (self.data_dir, im_filename), 'r')
+      img = Image.open("%s/%s" % (self.data_dir, im_filename), 'r').convert('RGB')
       w = np.array(img).shape[0]
       h = np.array(img).shape[1]
-      d = np.array(img).shape[2]
       pixel_mean += np.sum(np.sum(np.array(img), axis=0), axis=0)
-      pixel_sqr_mean += np.sum(np.sum(np.array(img) ** 2, axis=0), axis=0) 
       n += w * h
     pixel_mean = pixel_mean / n
-    pixel_sqr_mean = pixel_sqr_mean / n
-    pixel_var = pixel_sqr_mean - pixel_mean ** 2
+
+    for item in self.data_info:
+      im_filename = item['im_filename']
+      img = Image.open("%s/%s" % (self.data_dir, im_filename), 'r').convert('RGB')
+      w = np.array(img).shape[0]
+      h = np.array(img).shape[1]
+      
+      pixel_var += np.sum(np.sum((np.array(img) - pixel_mean) ** 2, axis=0), axis=0)   
+    pixel_var = pixel_var / n
     return list(pixel_mean), list(pixel_var)
 
   def extract(self, split_ratio=1.):
     tag_prefix = 'N'
     puncts = [',', ';', '-', '\"', '\'']
     silence = '__SIL__'
-    for img_id in self.coco_api.imgToAnns.keys()[:20]:
+    for img_id in self.coco_api.imgToAnns.keys():
       pair_info = defaultdict(list)
       
       captions = self.speech_api.getImgCaptions(img_id) 
@@ -132,7 +137,7 @@ class COCO_Preprocessor(Preprocessor):
         pair_info['bboxes'].append((cat, x, y, w, h))
 
       self.data_info.append(pair_info)
-    self.pixel_mean, self.pixel_variance = [0., 0., 0.], [1., 1., 1.] #self.calc_pixel_mean_and_variance()
+    self.pixel_mean, self.pixel_variance = self.calc_pixel_mean_and_variance()
       
     # TODO: Implement cross validation
     n_examples = len(self.data_info)
@@ -158,8 +163,8 @@ class COCO_Preprocessor(Preprocessor):
                 f, indent=4, sort_keys=True)
 
 if __name__ == '__main__':
-  preproc = COCO_Preprocessor(["annotations/instances_val2014.json",
-                              "../../data/mscoco/val2014/val_2014.sqlite3"],
-                              "../../data/mscoco/val2014/imgs/val2014", 
-                              output_file='mscoco_test_info.json')
-  preproc.extract(split_ratio=0.5)
+  preproc = COCO_Preprocessor(["annotations/instances_train2014.json",
+                              "../../data/mscoco/train2014/train_2014.sqlite3"],
+                              "../../data/mscoco/train2014/imgs/train2014", 
+                              output_file='mscoco_info.json')
+  preproc.extract()
