@@ -44,8 +44,8 @@ class COCO_Preprocessor(Preprocessor):
     pixel_mean = 0.
     pixel_var = 0.
     n = 0. 
-    for item in self.data_info:
-      im_filename = item['im_filename']
+    for img_id in self.coco_api.imgToAnns.keys():
+      im_filename = self.coco_api.loadImgs(int(img_id))[0]['file_name']
       img = Image.open("%s/%s" % (self.data_dir, im_filename), 'r').convert('RGB')
       w = np.array(img).shape[0]
       h = np.array(img).shape[1]
@@ -53,8 +53,8 @@ class COCO_Preprocessor(Preprocessor):
       n += w * h
     pixel_mean = pixel_mean / n
 
-    for item in self.data_info:
-      im_filename = item['im_filename']
+    for img_id in self.coco_api.imgToAnns.keys():
+      im_filename = self.coco_api.loadImgs(int(img_id))[0]['file_name']
       img = Image.open("%s/%s" % (self.data_dir, im_filename), 'r').convert('RGB')
       w = np.array(img).shape[0]
       h = np.array(img).shape[1]
@@ -67,7 +67,7 @@ class COCO_Preprocessor(Preprocessor):
     tag_prefix = 'N'
     puncts = [',', ';', '-', '\"', '\'']
     silence = '__SIL__'
-    for img_id in self.coco_api.imgToAnns.keys():
+    for img_id in self.coco_api.imgToAnns.keys()[0]:
       pair_info = defaultdict(list)
       
       captions = self.speech_api.getImgCaptions(img_id) 
@@ -167,4 +167,4 @@ if __name__ == '__main__':
                               "../../data/mscoco/train2014/train_2014.sqlite3"],
                               "../../data/mscoco/train2014/imgs/train2014", 
                               output_file='mscoco_info.json')
-  preproc.extract()
+  preproc.calc_pixel_mean_variance()
