@@ -43,8 +43,8 @@ parser.add_argument("--audio-model", type=str, default="Davenet",
         help="audio model architecture", choices=["Davenet"])
 parser.add_argument("--image-model", type=str, default="VGG16",
         help="image model architecture", choices=["VGG16"])
-parser.add_argument("--pretrained-image-model", action="store_true",
-    dest="pretrained_image_model", help="Use an image network pretrained on ImageNet")
+parser.add_argument("--pretrained-image-model", type=bool, default=True,
+    help="Use an image network pretrained on ImageNet")
 parser.add_argument("--margin", type=float, default=1.0, help="Margin paramater for triplet loss")
 parser.add_argument("--simtype", type=str, default="MISA",
         help="matchmap similarity function", choices=["SISA", "MISA", "SIMA"])
@@ -87,5 +87,7 @@ if DEBUG:
   print(audio_model.parameters(), image_model.parameters())
 
 train(audio_model, image_model, train_loader, val_loader, args)
+#begin = time.time()
 #recalls = validate(audio_model, image_model, val_loader, args)
+#print(time.time() - begin)
 #print(recalls)

@@ -2,12 +2,14 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from torch.autograd import Variable
 import torchvision.models as imagemodels
 import torchvision.transforms as transforms
 import torch.utils.model_zoo as model_zoo
 from PIL import Image
 import numpy as np
 
+DEBUG = False
 class Resnet18(imagemodels.ResNet):
   def __init__(self, embedding_dim=1024, pretrained=False):
     super(Resnet18, self).__init__(imagemodels.resnet.BasicBlock, [2, 2, 2, 2])
@@ -43,7 +45,7 @@ class Resnet34(imagemodels.ResNet):
     self.embedder = nn.Conv2d(512, embedding_dim, kernel_size=1, stride=1, padding=0)
     
 
-  def forward(self, x):
+  def forward(self, x):  
     x = self.conv1(x)
     x = self.bn1(x)
     x = self.relu(x)
@@ -73,8 +75,13 @@ class VGG16(nn.Module):
         nn.Conv2d(512, embedding_dim, kernel_size=3, stride=1, padding=1))
     self.image_model = model
 
-  def forward(self, x):
+  def forward(self, x):  
     x = self.image_model(x)
+    # Additional normalization layer
+    x_norm = torch.norm(x, 2, 1, keepdim=True)
+    x = x / x_norm
+    if DEBUG:
+      print(x_norm.size())
     return x
 
 if __name__ == '__main__':

@@ -9,8 +9,8 @@ from .utils import *
 
 DEBUG = False
 def train(audio_model, image_model, train_loader, test_loader, args):
-  device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-  torch.set_grad_enabled(True)
+  #device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+  #torch.autograd.set_grad_enabled(True)
   
   batch_time = AverageMeter()
   data_time = AverageMeter() 
@@ -47,19 +47,21 @@ def train(audio_model, image_model, train_loader, test_loader, args):
 
   # Load the current weights of the models
   if epoch != 0:
-    audio_model.load_state_dict("%s/models/audio_model.%d.pth" % (exp_dir, epoch))
-    image_model.load_state_dict("%s/models/image_model.%d.pth" % (exp_dir, epoch))
+    audio_model.load_state_dict(torch.load("%s/models/audio_model.%d.pth" % (exp_dir, epoch)))
+    image_model.load_state_dict(torch.load("%s/models/image_model.%d.pth" % (exp_dir, epoch)))
     
   # Assign devices for the models (.to())
-  audio_model.to(device)
-  image_model.to(device)
+  #audio_model.to(device)
+  #image_model.to(device)
+  if torch.cuda.is_available():
+    audio_model = audio_model.cuda()
+    image_model = image_model.cuda()
 
   # Find the parameters to be optimized (decide based on .requires_grad) 
   audio_trainables = [p for p in audio_model.parameters() if p.requires_grad]
   image_trainables = [p for p in image_model.parameters() if p.requires_grad]
   trainables = audio_trainables + image_trainables
-  if DEBUG:
-    print(trainables)
+  
   # Set up the optimizer (SGD / ADAM);
   optimizer = None
   if args.optim == 'sgd':
@@ -77,13 +79,15 @@ def train(audio_model, image_model, train_loader, test_loader, args):
   
   # States are stored in the double dictionary [optimizer].state; assign a device 
   # for each state variable 
-  # Load the current states of the optimizer in /models/optim_state.[epoch].pth
+  # Load the current states of the optimizer in /models/optim_states.[epoch].pth
   if epoch != 0:
-    optimizer.load_state_dict('%s/models/optim_state.%d.pth' % (args.exp_dir, best_epoch))
+    optimizer.load_state_dict(torch.load('%s/models/optim_states.%d.pth' % (args.exp_dir, best_epoch)))
     for s in optimizer.state.values():
       for k, v in s.items():
         if isinstance(v, torch.Tensor):
-          s[k] = v.to(device)
+          #s[k] = v.to(device)
+          if torch.cuda.is_available():
+            v = v.cuda()
           print("loaded state dict from epoch %d" % epoch)
 
   epoch += 1
@@ -101,9 +105,20 @@ def train(audio_model, image_model, train_loader, test_loader, args):
     image_model.train()
     # Batch training
     for i, (image_inputs, audio_inputs, nframes) in enumerate(train_loader):  
+      if DEBUG:
+        if i > 10:
+          break
+        print('audio_inputs.mean', audio_inputs.mean())
+        print('image_inputs mean', image_inputs.mean())
+      
       data_time.update(time.time() - end_time)
-      image_inputs = image_inputs.to(device)
-      audio_inputs = audio_inputs.to(device)
+      image_inputs = Variable(image_inputs)
+      audio_inputs = Variable(audio_inputs)
+      #image_inputs = image_inputs.to(device)
+      #audio_inputs = audio_inputs.to(device)
+      if torch.cuda.is_available():
+        image_inputs = image_inputs.cuda()
+        audio_inputs = audio_inputs.cuda()
       B = image_inputs.size(0) 
 
       optimizer.zero_grad()
@@ -117,12 +132,18 @@ def train(audio_model, image_model, train_loader, test_loader, args):
       loss = sampled_margin_rank_loss(
                 image_outputs, audio_outputs, nframes,
                 margin = args.margin, simtype = args.simtype) 
-      
+          
       loss.backward()
       optimizer.step()
+      
+      if DEBUG:
+        for p in audio_trainables[-2:]:
+          print(p.size())
+          print(p.data[:4])
+          print(p.grad[:4])
 
-      # Record loss
-      loss_meter.update(loss.item(), B)
+      # Record loss (Ugly, change it later)
+      loss_meter.update(loss.data.cpu().numpy()[0], B)
       batch_time.update(time.time() - end_time)
 
       # Print the result every n_print_steps
@@ -164,7 +185,7 @@ def train(audio_model, image_model, train_loader, test_loader, args):
 
 def validate(audio_model, image_model, val_loader, args):
   # Assign the models to devices
-  device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+  #device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
   batch_time = AverageMeter()
 
   if not isinstance(audio_model, torch.nn.DataParallel):
@@ -173,8 +194,12 @@ def validate(audio_model, image_model, val_loader, args):
   if not isinstance(image_model, torch.nn.DataParallel):
     image_model = nn.DataParallel(image_model)
 
-  audio_model = audio_model.to(device)
-  image_model = image_model.to(device)
+  #audio_model = audio_model.to(device)
+  #image_model = image_model.to(device)
+  if torch.cuda.is_available():
+    audio_model = audio_model.cuda()
+    image_model = image_model.cuda()
+
   audio_model.eval()
   image_model.eval()
 
@@ -185,36 +210,43 @@ def validate(audio_model, image_model, val_loader, args):
   matchmaps = {}
   nframes_all = []
   end = time.time()
-  with torch.no_grad(): 
-    for i, (image_input, audio_input, nframes) in enumerate(val_loader):
+  #with torch.no_grad(): 
+  for i, (image_input, audio_input, nframes) in enumerate(val_loader):
+    if DEBUG:
+      #print(i, audio_input.size())
+      if i > 1:
+        break
+    audio_input = Variable(audio_input)
+    image_input = Variable(image_input)
+
+    audio_output = audio_model(audio_input)
+    image_output = image_model(image_input)
+    
+    image_output = image_output.cpu().detach()
+    audio_output = audio_output.cpu().detach()
+    if args.save_matchmap:
       if DEBUG:
-        print(audio_input.size())
-      audio_output = audio_model(audio_input)
-      image_output = image_model(image_input)
-      
-      image_output = image_output.to('cpu').detach()
-      audio_output = audio_output.to('cpu').detach()
-      if args.save_matchmap:
-        matchmap = computeMatchmap(image_output, audio_output)
-        matchmaps[str(i)] = matchmap
+        print('matchmap option is wrong')
+    #  matchmap  = computeMatchmap(image_output, audio_output)
+    #  matchmaps[str(i)] = matchmap
 
-      audio_embeddings.append(audio_output)
-      image_embeddings.append(image_output)
-      pooling_ratio = round(audio_input.size(-1) / audio_output.size(-1))
-      nframes.div_(pooling_ratio)
-      nframes_all.append(nframes.cpu())
+    audio_embeddings.append(audio_output)
+    image_embeddings.append(image_output)
+    pooling_ratio = round(audio_input.size(-1) / audio_output.size(-1))
+    nframes.div_(pooling_ratio)
+    nframes_all.append(nframes.cpu())
 
-      batch_time.update(time.time() - end)
-      end = time.time()
-  
-    audio_embeddings = torch.cat(audio_embeddings)
-    image_embeddings = torch.cat(image_embeddings)
-    nframes_all = torch.cat(nframes_all)
+    batch_time.update(time.time() - end)
+    end = time.time()
+
+  audio_embeddings = torch.cat(audio_embeddings)
+  image_embeddings = torch.cat(image_embeddings)
+  nframes_all = torch.cat(nframes_all)
 
   # Save the match maps
-  if args.save_matchmap:
-    with open('%s/matchmaps/matchmaps.json', 'w') as f:
-      json.dump(matchmaps, f) 
+  #if args.save_matchmap:
+  #  with open('%s/matchmaps/matchmaps.json', 'w') as f:
+  #    json.dump(matchmaps, f) 
   # Compute recalls
   recalls = calc_recalls(image_embeddings, audio_embeddings, nframes_all, args.simtype)
   A_r10 = recalls['A_r10']

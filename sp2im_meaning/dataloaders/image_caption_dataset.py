@@ -17,6 +17,8 @@ import random
 
 # TODO: Load segments and bounding boxes of the speech
 # TODO: Compute the mean and std of the pixel values of the images in MSCOCO 
+# TODO: Fix the wavfile reading problem in test code
+DEBUG = False
 def preemphasis(signal, coeff=0.97):
   return np.append(signal[0], signal[1:] - coeff * signal[:-1])
 
@@ -51,11 +53,11 @@ class ImageCaptionDataset(Dataset):
         [transforms.Resize(256), transform.CenterCrop(224), transforms.ToTensor()])
     else:
       self.image_resize_and_crop = transforms.Compose(
-        [transforms.RandomResizedCrop(crop_size), transforms.ToTensor()]) 
+        [transforms.RandomSizedCrop(crop_size), transforms.ToTensor()]) 
     
-    # TODO: modify this part to the mean and std of MSCOCO
-    RGB_mean = self.image_conf.get('RGB_mean', self.pixel_mean) #[0.485, 0.456, 0.406])
-    RGB_std = self.image_conf.get('RGB_std', self.pixel_std)#[0.229, 0.224, 0.225])
+    # TODO: modify this part to the mean and std of MSCOCO training set
+    RGB_mean = self.image_conf.get('RGB_mean', [119.4, 113.5, 103.6]) #[0.485, 0.456, 0.406])
+    RGB_std = self.image_conf.get('RGB_std', [6309.7 ** 1/2, 6101.6 ** 1/2, 6743.0 ** 1/2])#[0.229, 0.224, 0.225])
     self.image_normalize = transforms.Normalize(mean=RGB_mean, std=RGB_std)
 
     self.windows = {'hamming': scipy.signal.hamming,
@@ -81,6 +83,9 @@ class ImageCaptionDataset(Dataset):
     win_length = int(sample_rate * window_size)
     hop_length = int(sample_rate * window_stride)
 
+    if DEBUG:
+      print(path)
+      print(os.path.realpath(path))
     y, sr = librosa.load(path, sample_rate)
     if y.size == 0:
       y = np.zeros(200)
@@ -142,18 +147,19 @@ class ImageCaptionDataset(Dataset):
 if __name__ == '__main__':
   y = np.random.normal(size=(32000,))
   img = np.random.uniform(size=(500, 500))
-  wavfile.write('../../data/test/test_random.wav', 16000, y)
+  #librosa.output.write_wav('../../data/test/test_random.wav', y, 16000, norm=True)
   img_obj = Image.fromarray(img).convert('RGB')
   img_obj.save('../../data/test/test_random.png') 
 
-  data_info = {'data':[{'sp_filename':'test_random.wav', 'im_filename':'test_random.png'}]*64}
+  data_info = {'data':[{'sp_filename':'test_random.wav', 'im_filename':'test_random.png'}]*64, 'pixel_mean': [0., 0., 0.], 'pixel_variance': [1., 1., 1.]}
   with open('../../data/test/data_info_train.json', 'w') as f:
     json.dump(data_info, f, indent=4, sort_keys=True)
   shutil.copy('../../data/test/data_info_train.json', '../../data/test/data_info_test.json')
 
-  audio_config = {'audio_base_path': '../../data/test/'}
-  image_config = {'image_base_path': '../../data/test/'}
-  dset = ImageCaptionDataset('../../data/test/data_info.json', audio_config, image_config)
+  cwd = os.getcwd()
+  audio_config = {'audio_base_path': cwd + '/../../data/test/'}
+  image_config = {'image_base_path': cwd + '/../../data/test/'}
+  dset = ImageCaptionDataset(cwd + '/../../data/test/data_info_train.json', audio_config, image_config)
   image, spec, nframes = dset[0]
   print(spec.shape)
   

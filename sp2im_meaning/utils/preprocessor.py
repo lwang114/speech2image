@@ -21,7 +21,7 @@ class Preprocessor(object):
     raise NotImplementedError
 
 class COCO_Preprocessor(Preprocessor):
-  def __init__(self, api_files, data_dir, output_file = "mscoco_info.json"):
+  def __init__(self, api_files, data_dir, output_file = "mscoco_info.json", split_ratio=1.):
     super(COCO_Preprocessor, self).__init__(api_files, data_dir, output_file)
     instance_json_path = self.api_files[0]     
     speech_sql_file = self.api_files[1]    
@@ -38,14 +38,17 @@ class COCO_Preprocessor(Preprocessor):
     except:
       raise RuntimeError("Run make in the pythontools dir of cocoapi before running this")
 
+    self.ntr = int(split_ratio * len(self.coco_api.imgToAnns.keys()))
     self.lemmatizer = WordNetLemmatizer()
 
   def calc_pixel_mean_and_variance(self):
     pixel_mean = 0.
     pixel_var = 0.
     n = 0. 
-    for img_id in self.coco_api.imgToAnns.keys():
+    for img_id in self.coco_api.imgToAnns.keys()[:self.ntr]:
       im_filename = self.coco_api.loadImgs(int(img_id))[0]['file_name']
+      if DEBUG:
+        print(im_filename)
       img = Image.open("%s/%s" % (self.data_dir, im_filename), 'r').convert('RGB')
       w = np.array(img).shape[0]
       h = np.array(img).shape[1]
@@ -55,6 +58,8 @@ class COCO_Preprocessor(Preprocessor):
 
     for img_id in self.coco_api.imgToAnns.keys():
       im_filename = self.coco_api.loadImgs(int(img_id))[0]['file_name']
+      if DEBUG:
+        print(im_filename)
       img = Image.open("%s/%s" % (self.data_dir, im_filename), 'r').convert('RGB')
       w = np.array(img).shape[0]
       h = np.array(img).shape[1]
@@ -67,7 +72,7 @@ class COCO_Preprocessor(Preprocessor):
     tag_prefix = 'N'
     puncts = [',', ';', '-', '\"', '\'']
     silence = '__SIL__'
-    for img_id in self.coco_api.imgToAnns.keys()[0]:
+    for img_id in self.coco_api.imgToAnns.keys():
       pair_info = defaultdict(list)
       
       captions = self.speech_api.getImgCaptions(img_id) 
@@ -141,9 +146,9 @@ class COCO_Preprocessor(Preprocessor):
       
     # TODO: Implement cross validation
     n_examples = len(self.data_info)
-    if split_ratio < 1:
-      data_info_train = self.data_info[:int(split_ratio * n_examples)] 
-      data_info_val = self.data_info[int(split_ratio * n_examples):]
+    if n_examples != self.ntr:
+      data_info_train = self.data_info[:self.ntr] 
+      data_info_val = self.data_info[self.ntr:]
       with open('train_%s' % self.output_file, 'w') as f:
         json.dump({'data': data_info_train, 
                  'pixel_mean': self.pixel_mean,
@@ -163,8 +168,14 @@ class COCO_Preprocessor(Preprocessor):
                 f, indent=4, sort_keys=True)
 
 if __name__ == '__main__':
-  preproc = COCO_Preprocessor(["annotations/instances_train2014.json",
-                              "../../data/mscoco/train2014/train_2014.sqlite3"],
-                              "../../data/mscoco/train2014/imgs/train2014", 
-                              output_file='mscoco_info.json')
-  preproc.calc_pixel_mean_variance()
+  #preproc = COCO_Preprocessor(["annotations/instances_train2014.json",
+  #                            "../../data/mscoco/train2014/train_2014.sqlite3"],
+  #                            "../../data/mscoco/train2014/imgs/train2014", 
+  #                            output_file='mscoco_info.json')
+  preproc = COCO_Preprocessor(["annotations/instances_val2014.json",
+                              "../../data/mscoco/val2014/val_2014.sqlite3"],
+                              "../../data/mscoco/val2014/imgs/val2014", 
+                              output_file='mscoco_info.json',
+                              split_ratio=0.8)
+ 
+  print(preproc.calc_pixel_mean_and_variance())

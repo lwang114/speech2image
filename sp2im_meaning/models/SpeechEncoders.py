@@ -2,20 +2,23 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from torch.autograd import Variable
 import torchvision.models as imagemodels
 import torchvision.transforms as transforms
 import librosa
 import numpy as np
 
+DEBUG = False
 class Davenet(nn.Module):
-  def __init__(self, embedding_dim=1024):
+  def __init__(self, embedding_dim=1024, normalize=True):
     super(Davenet, self).__init__()
     self.embedding_dim = embedding_dim
+    self.normalize = normalize 
     self.bn = nn.BatchNorm2d(1)
     self.pool = nn.MaxPool2d(kernel_size=(1, 3), stride=(1, 2), padding=(0, 1))
-    self.conv1 = nn.Conv1d(1, 128, kernel_size=(40, 1), stride=(1, 1), padding=(0, 0))
-    self.conv2 = nn.Conv1d(128, 256, kernel_size=(1, 11), stride=(1, 1), padding=(0, 5))
-    self.conv3 = nn.Conv1d(256, 512, kernel_size=(1, 17), stride=(1, 1), padding=(0, 8))
+    self.conv1 = nn.Conv2d(1, 128, kernel_size=(40, 1), stride=(1, 1), padding=(0, 0))
+    self.conv2 = nn.Conv2d(128, 256, kernel_size=(1, 11), stride=(1, 1), padding=(0, 5))
+    self.conv3 = nn.Conv2d(256, 512, kernel_size=(1, 17), stride=(1, 1), padding=(0, 8))
     self.conv4 = nn.Conv2d(512, 512, kernel_size=(1, 17), stride=(1, 1), padding=(0, 8))
     self.embed = nn.Conv2d(512, embedding_dim, kernel_size=(1, 17), stride=(1, 1), padding=(0, 8))
 
@@ -33,6 +36,10 @@ class Davenet(nn.Module):
     x = F.relu(self.embed(x))
     x = self.pool(x)
     x = x.squeeze(2)
+    # Additional normalization layer
+    x_norm = torch.norm(x, 2, 1, keepdim=True)
+    if self.normalize:
+      x = x / x_norm
     return x
 
 if __name__ == '__main__':
