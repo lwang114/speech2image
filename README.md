@@ -14,7 +14,7 @@ environment.
 
 Contents: 
 #### ./hg16: 
-The two-branch network appeared in the 2016 paper written in tensorflow. The network is trained on the flickr8k_audio caption dataset and vgg penultimate feature vectors in http://isle.illinois.edu/sst/data/vgg_flickr8k.html. Please download the datasets and put them in the data directory before running the program.The training accuracy of the network for top 10 retrieval images is 35%, and 28% for top 5 images.
+The two-branch network appeared in the 2016 paper written in tensorflow. The network is trained on the flickr8k_audio caption dataset and vgg penultimate feature vectors in http://isle.illinois.edu/sst/data/vgg_flickr8k.html. Please download the datasets and put them in the data directory before running the program.
 
 1. To run the program, use:  
       python semanticembed.py [number of training data] [number of testing data]
