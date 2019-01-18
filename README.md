@@ -12,8 +12,8 @@ ICCV 2018
 The code is written in tensorflow (0.11.0rc0) with tflearn installed and pytorch (0.2.0). Anaconda 3.0 is the python
 environment.
 
-Contents:
-./hg16:
+Contents: 
+###./hg16: 
 The two-branch network appeared in the 2016 paper written in tensorflow. The network is trained on the flickr8k_audio caption dataset and vgg penultimate feature vectors in http://isle.illinois.edu/sst/data/vgg_flickr8k.html. Please download the datasets and put them in the data directory before running the program.The training accuracy of the network for top 10 retrieval images is 35%, and 28% for top 5 images.
 
 1. To run the program, use:  
@@ -31,10 +31,10 @@ The two-branch network appeared in the 2016 paper written in tensorflow. The net
       
 The project extracts the mel-frequency spectrogram from raw speech using the MFCC code from CMU Sphinx-III project. 
 
-./sp2im_word:
+###./sp2im_word: 
 The two-branch network appeared in the 2016 paper written in tflearn and pytorch; Study the effect of word context in learning the multimodal semantic embedding.
 
-./sp2im_meaning:
+###./sp2im_meaning: 
 Two-branch network appeared in the 2018 paper based on https://github.com/dharwath/DAVEnet-pytorch. 
 
 This project is currently under development, more features will appear later.
