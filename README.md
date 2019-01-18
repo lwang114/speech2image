@@ -1,4 +1,4 @@
-# speech2image 1.1
+# speech2image 2.0
 This project implements the speech to image network described in the Harwath and Glass 2016 and 2018 papers:  
 ~~~~~~
 David Harwath, Antonio Torralba and James Glass,
