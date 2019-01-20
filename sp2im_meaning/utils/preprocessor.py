@@ -72,12 +72,16 @@ class COCO_Preprocessor(Preprocessor):
     tag_prefix = 'N'
     puncts = [',', ';', '-', '\"', '\'']
     silence = '__SIL__'
-    for img_id in self.coco_api.imgToAnns.keys():
-      pair_info = defaultdict(list)
-      
+    for img_id in self.coco_api.imgToAnns.keys()[0]:
+      pair_info['sp_filename'] = [] 
+      pair_info['text'] = [] 
+      pair_info['nouns'] = [] 
+      pair_info['context3'] = [] 
+      pair_info['context5'] = [] 
+
       captions = self.speech_api.getImgCaptions(img_id) 
       # Extract word segment with window size of 1, 3 and 5
-      for caption in captions:
+      for k, caption in enumerate(captions):
         pair_info['sp_filename'].append(caption.filename)
         pair_info['text'].append(caption.text)
         pair_info['nouns'].append([])
@@ -124,9 +128,9 @@ class COCO_Preprocessor(Preprocessor):
           
           if DEBUG:
             print(wrd, tag)
-          pair_info['nouns'].append([wrd, begin, end])
-          pair_info['context3'].append((context3, begin_context3, end_context3))
-          pair_info['context5'].append((context5, begin_context5, end_context5))
+          pair_info['nouns'][k].append([wrd, begin, end])
+          pair_info['context3'][k].append((context3, begin_context3, end_context3))
+          pair_info['context5'][k].append((context5, begin_context5, end_context5))
 
       # Extract image bounding boxes
       im_filename = self.coco_api.loadImgs(int(img_id))[0]['file_name'] 
@@ -168,14 +172,15 @@ class COCO_Preprocessor(Preprocessor):
                 f, indent=4, sort_keys=True)
 
 if __name__ == '__main__':
-  #preproc = COCO_Preprocessor(["annotations/instances_train2014.json",
-  #                            "../../data/mscoco/train2014/train_2014.sqlite3"],
-  #                            "../../data/mscoco/train2014/imgs/train2014", 
-  #                            output_file='mscoco_info.json')
-  preproc = COCO_Preprocessor(["annotations/instances_val2014.json",
+  preproc = COCO_Preprocessor(["annotations/instances_train2014.json",
+                              "../../data/mscoco/train2014/train_2014.sqlite3"],
+                              "../../data/mscoco/train2014/imgs/train2014", 
+                              output_file='mscoco_info.json')
+  '''preproc = COCO_Preprocessor(["annotations/instances_val2014.json",
                               "../../data/mscoco/val2014/val_2014.sqlite3"],
                               "../../data/mscoco/val2014/imgs/val2014", 
                               output_file='mscoco_info.json',
                               split_ratio=0.8)
- 
-  print(preproc.calc_pixel_mean_and_variance())
+  '''
+  print(preproc.extract())
+  #print(preproc.calc_pixel_mean_and_variance())
